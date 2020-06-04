@@ -619,9 +619,7 @@ impl PublicKeySet {
         I: IntoIterator<Item = (T, &'a DecryptionShare)>,
         T: IntoFr,
     {
-        let samples = shares.into_iter().map(|(i, share)| (i, &share.0));
-        let g = interpolate(self.commit.degree(), samples)?;
-        Ok(xor_with_hash(g, &ct.1))
+        decrypt(self.commit.degree(), shares, ct)
     }
 }
 
@@ -709,6 +707,17 @@ where
 {
     let samples = shares.into_iter().map(|(i, share)| (i, &(share.0).0));
     Ok(Signature(interpolate(threshold, samples)?))
+}
+
+/// Combines the shares to decrypt the ciphertext.
+pub fn decrypt<'a, T, I>(threshold: usize, shares: I, ct: &Ciphertext) -> Result<Vec<u8>>
+where
+    I: IntoIterator<Item = (T, &'a DecryptionShare)>,
+    T: IntoFr,
+{
+    let samples = shares.into_iter().map(|(i, share)| (i, &share.0));
+    let g = interpolate(threshold, samples)?;
+    Ok(xor_with_hash(g, &ct.1))
 }
 
 /// Returns a hash of the group element and message, in the second group.
