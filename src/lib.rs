@@ -610,8 +610,7 @@ impl PublicKeySet {
         I: IntoIterator<Item = (T, &'a SignatureShare)>,
         T: IntoFr,
     {
-        let samples = shares.into_iter().map(|(i, share)| (i, &(share.0).0));
-        Ok(Signature(interpolate(self.commit.degree(), samples)?))
+        combine_signatures(self.commit.degree(), shares)
     }
 
     /// Combines the shares to decrypt the ciphertext.
@@ -700,6 +699,16 @@ where
 {
     let samples = shares.into_iter().map(|(i, share)| (i, &(share.0).0));
     Ok(PublicKey(interpolate(threshold, samples)?))
+}
+
+/// Combines the shares into a signature.
+pub fn combine_signatures<'a, T, I>(threshold: usize, shares: I) -> Result<Signature>
+where
+    I: IntoIterator<Item = (T, &'a SignatureShare)>,
+    T: IntoFr,
+{
+    let samples = shares.into_iter().map(|(i, share)| (i, &(share.0).0));
+    Ok(Signature(interpolate(threshold, samples)?))
 }
 
 /// Returns a hash of the group element and message, in the second group.
