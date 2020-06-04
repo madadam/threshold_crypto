@@ -692,6 +692,16 @@ pub fn hash_g2<M: AsRef<[u8]>>(msg: M) -> G2 {
     ChaChaRng::from_seed(digest).gen04()
 }
 
+/// Combines the public key shares into a public key.
+pub fn combine_public_keys<'a, T, I>(threshold: usize, shares: I) -> Result<PublicKey>
+where
+    I: IntoIterator<Item = (T, &'a PublicKeyShare)>,
+    T: IntoFr,
+{
+    let samples = shares.into_iter().map(|(i, share)| (i, &(share.0).0));
+    Ok(PublicKey(interpolate(threshold, samples)?))
+}
+
 /// Returns a hash of the group element and message, in the second group.
 fn hash_g1_g2<M: AsRef<[u8]>>(g1: G1, msg: M) -> G2 {
     // If the message is large, hash it, otherwise copy it.
@@ -1004,5 +1014,23 @@ mod tests {
     fn test_size() {
         assert_eq!(<G1Affine as CurveAffine>::Compressed::size(), PK_SIZE);
         assert_eq!(<G2Affine as CurveAffine>::Compressed::size(), SIG_SIZE);
+    }
+
+    #[test]
+    fn test_combine_public_keys() {
+        use rand::thread_rng;
+
+        let threshold = 3;
+        let sk_set = SecretKeySet::random(threshold, &mut thread_rng());
+        let pk_set = sk_set.public_keys();
+        let pk_master = pk_set.public_key();
+
+        let pk_shares: BTreeMap<_, _> = [1, 2, 3, 5]
+            .iter()
+            .map(|i| (*i, pk_set.public_key_share(i)))
+            .collect();
+
+        let pk_combined = combine_public_keys(threshold, &pk_shares);
+        assert_eq!(pk_combined, Ok(pk_master));
     }
 }
